@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8fafc; --card-bg: #ffffff; --text-main: #1e293b; --text-muted: #64748b; --accent: #3b82f6; --border: #e2e8f0;
+        }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 24px; }
+        .dashboard { max-width: 1260px; margin: auto; display: flex; flex-direction: column; gap: 24px; }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: var(--card-bg); padding: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid var(--border); display: flex; flex-direction: column; }
+        .kpi-card { align-items: center; text-align: center; }
+        .kpi-label { color: var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+        .kpi-value { font-size: 2rem; font-weight: 800; color: var(--accent); }
+        .chart-row { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
+        .full-row { width: 100%; }
+        @media (max-width: 1024px) { .chart-row { grid-template-columns: 1fr; } }
+        h2 { margin: 0 0 20px 0; font-size: 1.25rem; font-weight: 700; color: var(--text-main); border-left: 4px solid var(--accent); padding-left: 12px; }
+        .canvas-wrapper { position: relative; flex-grow: 1; min-height: 350px; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="kpi-row">
+            <div class="card kpi-card"><div class="kpi-label">📊 총 침해 사고 건수</div><div class="kpi-value" id="kpi-total">0</div></div>
+            <div class="card kpi-card"><div class="kpi-label">🌍 최다 공격 발생국</div><div class="kpi-value" id="kpi-top-country">-</div></div>
+            <div class="card kpi-card"><div class="kpi-label">⚔️ 핵심 공격 프로파일</div><div class="kpi-value" id="kpi-top-attack" style="font-size:1.4rem">-</div></div>
+        </div>
+        <div class="card full-row"><h2>📈 월별 침해 사고 발생 추이</h2><div class="canvas-wrapper"><canvas id="trendChart"></canvas></div></div>
+        <div class="chart-row">
+            <div class="card"><h2>📍 국가별 공격 현황 (Top 10)</h2><div class="canvas-wrapper"><canvas id="countryChart"></canvas></div></div>
+            <div class="card"><h2> 공격 유형별 비중 (Top 15)</h2><div class="canvas-wrapper"><canvas id="attackChart"></canvas></div></div>
+        </div>
+    </div>
+    <script>
+        const kpis = {"total_incidents": 1511, "top_country": "US", "top_attack": "Brute Force Attack"}; const countries = [{"\uacf5\uaca9 IP \uad6d\uac00":"US","\uc218\ud589 \ud589\uc704_semantic_grouped":"Malicious File Access","count":118},{"\uacf5\uaca9 IP \uad6d\uac00":"CN","\uc218\ud589 \ud589\uc704_semantic_grouped":"Brute Force Attack","count":69},{"\uacf5\uaca9 IP \uad6d\uac00":"RU","\uc218\ud589 \ud589\uc704_semantic_grouped":"Brute Force Attack","count":65},{"\uacf5\uaca9 IP \uad6d\uac00":"NL","\uc218\ud589 \ud589\uc704_semantic_grouped":"Brute Force Attack","count":60},{"\uacf5\uaca9 IP \uad6d\uac00":"RO","\uc218\ud589 \ud589\uc704_semantic_grouped":"Brute Force Attack","count":54},{"\uacf5\uaca9 IP \uad6d\uac00":"NG","\uc218\ud589 \ud589\uc704_semantic_grouped":"Account Credential Access","count":37},{"\uacf5\uaca9 IP \uad6d\uac00":"DE","\uc218\ud589 \ud589\uc704_semantic_grouped":"Brute Force Attack","count":27},{"\uacf5\uaca9 IP \uad6d\uac00":"JP","\uc218\ud589 \ud589\uc704_semantic_grouped":"SQL Injection","count":22},{"\uacf5\uaca9 IP \uad6d\uac00":"ID","\uc218\ud589 \ud589\uc704_semantic_grouped":"Brute Force Attack","count":21},{"\uacf5\uaca9 IP \uad6d\uac00":"GB","\uc218\ud589 \ud589\uc704_semantic_grouped":"Brute Force Attack","count":20}]; const attacks = [{"attack_type":"Brute Force Attack","count":637},{"attack_type":"SQL Injection","count":279},{"attack_type":"Malicious File Access","count":188},{"attack_type":"Account Credential Access","count":106},{"attack_type":"Remote Access","count":97},{"attack_type":"Webshell Access","count":81},{"attack_type":"PHP Info Disclosure Access","count":26},{"attack_type":"Phishing Related","count":22},{"attack_type":"C2 Server","count":15},{"attack_type":"\uae30\ud0c0","count":60}]; const trends = [{"\uc6d4":"2025-01","count":100},{"\uc6d4":"2025-02","count":358},{"\uc6d4":"2025-03","count":25},{"\uc6d4":"2025-04","count":90},{"\uc6d4":"2025-05","count":20},{"\uc6d4":"2025-06","count":109},{"\uc6d4":"2025-07","count":81},{"\uc6d4":"2025-08","count":40},{"\uc6d4":"2025-09","count":104},{"\uc6d4":"2025-10","count":518},{"\uc6d4":"2025-11","count":50},{"\uc6d4":"2025-12","count":16}]; const TOTAL_VAL = 1511;
+
+        document.getElementById('kpi-total').innerText = kpis.total_incidents.toLocaleString() + '건';
+        document.getElementById('kpi-top-country').innerText = kpis.top_country; document.getElementById('kpi-top-attack').innerText = kpis.top_attack;
+
+        // Trend Chart
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line', data: { labels: trends.map(t=>t['월']), datasets: [{ label: '사고 건수', data: trends.map(t=>t.count), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+
+        // Country Chart
+        new Chart(document.getElementById('countryChart'), {
+            type: 'bar', data: { labels: countries.map(d => `${d['공격 IP 국가']} [${d['수행 행위_semantic_grouped']}]`), datasets: [{ label: '탐지 건수', data: countries.map(d => d['count']), backgroundColor: '#3b82f6', borderRadius: 8 }] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+
+        // Attack Chart
+        new Chart(document.getElementById('attackChart'), {
+            type: 'doughnut', data: { labels: attacks.map(d => d.attack_type), datasets: [{ data: attacks.map(d => d.count), backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'], hoverOffset: 20 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true } }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw}건 (${((ctx.raw/TOTAL_VAL)*100).toFixed(1)}%)` } } } }
+        });
+    </script>
+</body>
+</html>
